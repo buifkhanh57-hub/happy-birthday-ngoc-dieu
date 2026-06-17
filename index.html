@@ -1400,25 +1400,75 @@
             }
 
             // ============ MUSIC (Web Audio API - Happy Birthday melody) ============
-           function startMusic() {
-    if (isMusicPlaying) return;
+            function startMusic() {
+                if (isMusicPlaying) return;
+                isMusicPlaying = true;
+                musicBtn.classList.add('playing');
+                musicBtn.textContent = '🎶';
 
-    const music = document.getElementById('bgMusic');
-    music.play();
+                try {
+                    audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.log('Web Audio API not supported');
+                    return;
+                }
 
-    isMusicPlaying = true;
-    musicBtn.classList.add('playing');
-    musicBtn.textContent = '🎶';
-}
+                // Happy Birthday melody notes (frequencies in Hz)
+                const melody = [
+                    261.63, 261.63, 293.66, 261.63, 349.23, 329.63, // Happy birthday to you
+                    261.63, 261.63, 293.66, 261.63, 392.00, 349.23, // Happy birthday to you
+                    261.63, 261.63, 523.25, 440.00, 349.23, 329.63, 293.66, // Happy birthday dear...
+                    466.16, 466.16, 440.00, 349.23, 392.00, 349.23, // Happy birthday to you
+                ];
+                const noteDuration = 0.35;
+                const pauseBetweenNotes = 0.08;
+                const totalDuration = melody.length * (noteDuration + pauseBetweenNotes) + 1.5;
 
-           function stopMusic() {
-    isMusicPlaying = false;
-    musicBtn.classList.remove('playing');
-    musicBtn.textContent = '🎵';
+                function playMelody() {
+                    if (!isMusicPlaying || !audioCtx) return;
+                    const now = audioCtx.currentTime;
+                    melody.forEach((freq, i) => {
+                        const startTime = now + i * (noteDuration + pauseBetweenNotes);
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, startTime);
+                        gain.gain.setValueAtTime(0, startTime);
+                        gain.gain.linearRampToValueAtTime(0.25, startTime + 0.04);
+                        gain.gain.linearRampToValueAtTime(0.2, startTime + noteDuration * 0.6);
+                        gain.gain.linearRampToValueAtTime(0, startTime + noteDuration);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(startTime);
+                        osc.stop(startTime + noteDuration + 0.05);
+                    });
+                }
 
-    const music = document.getElementById('bgMusic');
-    music.pause();
-}
+                playMelody();
+                musicInterval = setInterval(playMelody, totalDuration * 1000);
+            }
+
+            function stopMusic() {
+                isMusicPlaying = false;
+                musicBtn.classList.remove('playing');
+                musicBtn.textContent = '🎵';
+                if (musicInterval) {
+                    clearInterval(musicInterval);
+                    musicInterval = null;
+                }
+                if (audioCtx) {
+                    audioCtx.close().catch(() => {});
+                    audioCtx = null;
+                }
+            }
+
+            musicBtn.addEventListener('click', () => {
+                if (isMusicPlaying) {
+                    stopMusic();
+                } else {
+                    startMusic();
+                }
+            });
 
             // ============ TYPING EFFECT ============
             function startTypingEffect() {
@@ -1818,7 +1868,4 @@
         })();
     </script>
 </body>
-<audio id="bgMusic">
-    <source src="RedRed.mp3" type="audio/mpeg">
-</audio>
 </html>
